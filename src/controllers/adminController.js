@@ -34,6 +34,18 @@ async function bootstrap(req, res, next) {
         .status(400)
         .json({ error: 'Missing school or principal details' });
     }
+    
+    if (!principal.mobile) {
+      return res.status(400).json({ error: 'Principal mobile number is required' });
+    }
+    
+    // Validate mobile number
+    const cleanedMobile = String(principal.mobile).replace(/[\s()-]/g, '');
+    const validMobile = /^(\+91)?[6-9]\d{9}$/.test(cleanedMobile);
+    if (!validMobile) {
+      return res.status(400).json({ error: 'Invalid mobile number format' });
+    }
+    const normalizedMobile = cleanedMobile.startsWith('+91') ? cleanedMobile : `+91${cleanedMobile.replace(/^91/, '')}`;
 
     // -----------------------------
     // Create or update School
@@ -75,9 +87,17 @@ async function bootstrap(req, res, next) {
         passwordHash,
         role: ROLES.PRINCIPAL,
         isActive: true,
+        meta: { mobile: normalizedMobile },
       });
 
       await principalUser.save();
+    } else {
+      // Update mobile if not set
+      if (!principalUser.meta?.mobile) {
+        principalUser.meta = principalUser.meta || {};
+        principalUser.meta.mobile = normalizedMobile;
+        await principalUser.save();
+      }
     }
 
     // -----------------------------
@@ -99,6 +119,11 @@ async function bootstrap(req, res, next) {
  */
 async function setMobile(req, res, next) {
   try {
+    // Disabled in production for security
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Endpoint disabled in production' });
+    }
+
     const envSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
 
     // If admin endpoint is disabled

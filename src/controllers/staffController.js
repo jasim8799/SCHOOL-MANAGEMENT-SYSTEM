@@ -5,6 +5,20 @@ const { hashPassword } = require('../utils/password');
 const { dispatchNotification } = require('../services/notificationDispatcher');
 const { ROLES } = require('../config/constants');
 
+function validateMobile(mobile) {
+  if (!mobile) return { valid: false, error: 'Mobile number is required' };
+  // Remove spaces and special characters
+  const cleaned = String(mobile).replace(/[\s()-]/g, '');
+  // Check for Indian mobile format: +91XXXXXXXXXX or 10 digits
+  const indianMobile = /^(\+91)?[6-9]\d{9}$/.test(cleaned);
+  if (!indianMobile) {
+    return { valid: false, error: 'Invalid mobile number. Use Indian format: +91XXXXXXXXXX or 10 digits' };
+  }
+  // Normalize to +91 format
+  const normalized = cleaned.startsWith('+91') ? cleaned : `+91${cleaned.replace(/^91/, '')}`;
+  return { valid: true, mobile: normalized };
+}
+
 function buildDocuments(docs = []) {
   if (!Array.isArray(docs)) return [];
   return docs
@@ -15,9 +29,15 @@ function buildDocuments(docs = []) {
 
 async function createStaff(req, res, next) {
   try {
-    const { name, email, password, role, classIds = [], subjectIds = [], documents = [] } = req.body;
+    const { name, email, password, role, mobile, classIds = [], subjectIds = [], documents = [] } = req.body;
     if (!name || !email || !role) return res.status(400).json({ error: 'name, email, role required' });
     if (![ROLES.TEACHER, ROLES.OPERATOR].includes(role)) return res.status(400).json({ error: 'role must be teacher or operator' });
+
+    // Validate mobile number
+    const mobileValidation = validateMobile(mobile);
+    if (!mobileValidation.valid) {
+      return res.status(400).json({ error: mobileValidation.error });
+    }
 
     const schoolId = req.user.schoolId;
     const existing = await User.findOne({ email: email.toLowerCase(), schoolId });
@@ -30,6 +50,7 @@ async function createStaff(req, res, next) {
       email: email.toLowerCase(),
       passwordHash,
       role,
+      meta: { mobile: mobileValidation.mobile },
       documents: buildDocuments(documents),
       createdBy: req.user.userId
     });

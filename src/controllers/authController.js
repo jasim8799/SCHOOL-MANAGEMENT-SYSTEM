@@ -42,7 +42,12 @@ async function login(req, res, next) {
 
     // Require mobile for OTP delivery
     const destination = user?.meta?.mobile;
-    if (!destination) return res.status(400).json({ error: 'Mobile number required for OTP', code: 'MOBILE_REQUIRED' });
+    if (!destination) {
+      return res.status(400).json({ 
+        error: 'Mobile number not registered. Please contact administrator to add your mobile number for OTP verification.', 
+        code: 'MOBILE_REQUIRED' 
+      });
+    }
 
     // Create OTP challenge (without sending OTP yet)
     const challengeId = crypto.randomBytes(16).toString('hex');
@@ -89,13 +94,7 @@ async function requestOtp(req, res, next) {
     challenge.attempts = 0;
     await challenge.save();
 
-    // 🔍 DEBUG: Log OTP for testing (REMOVE IN PRODUCTION)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔐 OTP GENERATED');
-    console.log('Mobile:', challenge.destination);
-    console.log('OTP:', otp);
-    console.log('Expires:', challenge.expiresAt.toISOString());
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('OTP sent successfully to registered mobile');
 
     // Send via MessageService
     const sendRes = await sendMessage({
