@@ -19,13 +19,24 @@ function checkRateLimit(schoolId) {
 }
 
 async function sendMessage({ schoolId, channel, to, template, payload, createdBy }) {
+  // 🔍 DEBUG: Log message details
+  console.log('📤 MESSAGE SERVICE: Attempting to send');
+  console.log('   Channel:', channel);
+  console.log('   To:', to);
+  console.log('   Template:', template);
+  if (template === 'login_otp' && payload?.otp) {
+    console.log('   OTP:', payload.otp);
+  }
+
   // rate limit
   if (!checkRateLimit(schoolId)) {
+    console.log('❌ MESSAGE SERVICE: Rate limited');
     const log = await MessageLog.create({ schoolId, channel, to, template, payload, status: 'failed', createdBy });
     return { success: false, reason: 'rate_limited', log };
   }
 
   // simulate provider (always success for demo)
+  console.log('✅ MESSAGE SERVICE: Marked as sent (simulated)');
   const status = 'sent';
   const log = await MessageLog.create({ schoolId, channel, to, template, payload, status, createdBy });
   return { success: true, log };

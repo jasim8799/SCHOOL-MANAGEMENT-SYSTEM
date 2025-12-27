@@ -89,6 +89,14 @@ async function requestOtp(req, res, next) {
     challenge.attempts = 0;
     await challenge.save();
 
+    // 🔍 DEBUG: Log OTP for testing (REMOVE IN PRODUCTION)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔐 OTP GENERATED');
+    console.log('Mobile:', challenge.destination);
+    console.log('OTP:', otp);
+    console.log('Expires:', challenge.expiresAt.toISOString());
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     // Send via MessageService
     const sendRes = await sendMessage({
       schoolId: challenge.schoolId,
