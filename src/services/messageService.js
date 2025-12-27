@@ -23,7 +23,7 @@ function checkRateLimit(schoolId) {
  * Send SMS via Fast2SMS
  */
 async function sendSmsViaFast2SMS(mobile, message) {
-  const apiKey = process.env.CxIk93BGzrLUMGOiTrwQ2TnEPeHN2MEWCXkExQKTNjtyPDy395GcHvudaP6E;
+  const apiKey = process.env.FAST2SMS_API_KEY;
   
   if (!apiKey) {
     throw new Error('FAST2SMS_API_KEY not configured in environment');
