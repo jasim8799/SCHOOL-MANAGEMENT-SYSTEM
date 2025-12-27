@@ -43,11 +43,19 @@ async function seed() {
       passwordHash,
       role: ROLES.PRINCIPAL,
       isActive: true,
+      meta: { mobile: '+918799760471' }, // Mobile for OTP delivery
       createdBy: null
     });
     await principal.save();
     console.log('Created principal user:', principalEmail);
   } else {
+    // Update existing principal to ensure they have a mobile number
+    if (!principal.meta || !principal.meta.mobile) {
+      principal.meta = principal.meta || {};
+      principal.meta.mobile = '+918799760471';
+      await principal.save();
+      console.log('Updated principal with mobile number');
+    }
     console.log('Principal already exists, skipping creation.');
   }
 

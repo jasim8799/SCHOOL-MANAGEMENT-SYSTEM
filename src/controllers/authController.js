@@ -9,13 +9,14 @@ const { sendMessage } = require('../services/messageService');
 async function login(req, res, next) {
   try {
     const { email, password, schoolId, userId, mobile } = req.body;
+    const platform = req.headers['x-platform'] || 'web'; // web or mobile
 
     let user;
-    // Staff path: email + password + schoolId
+    // Staff path: email + password + schoolId (web only)
     if (email && schoolId) {
       user = await User.findOne({ email: String(email).toLowerCase(), schoolId });
     } else {
-      // Student/Parent path: userId or mobile + password (schoolId auto)
+      // Student/Parent path: userId or mobile + password (schoolId auto) (mobile only)
       const q = [];
       if (userId) q.push({ 'meta.userId': userId });
       if (mobile) q.push({ 'meta.mobile': mobile });
@@ -26,6 +27,18 @@ async function login(req, res, next) {
     if (!user) return res.status(401).json({ error: 'Invalid credentials', code: 'INVALID_PASSWORD' });
     const ok = await comparePassword(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'Invalid credentials', code: 'INVALID_PASSWORD' });
+
+    // Platform + Role validation
+    const webRoles = ['principal', 'operator', 'teacher'];
+    const mobileRoles = ['teacher', 'student', 'parent'];
+    const userRole = String(user.role || '').toLowerCase();
+    
+    if (platform === 'web' && !webRoles.includes(userRole)) {
+      return res.status(403).json({ error: 'Role not allowed on web', code: 'ROLE_NOT_ALLOWED' });
+    }
+    if (platform === 'mobile' && !mobileRoles.includes(userRole)) {
+      return res.status(403).json({ error: 'Role not allowed on mobile', code: 'ROLE_NOT_ALLOWED' });
+    }
 
     // Require mobile for OTP delivery
     const destination = user?.meta?.mobile;
@@ -38,6 +51,7 @@ async function login(req, res, next) {
       userId: user._id,
       schoolId: user.schoolId,
       role: user.role,
+      platform,
       destination,
       otpHash: hashOtp(generateOtp()), // initial placeholder (will be replaced on request-otp)
       expiresAt: addMinutes(new Date(), 5),
@@ -48,7 +62,7 @@ async function login(req, res, next) {
 
     // Mask destination for UI
     const mask = maskMobile(destination);
-    return res.json({ challengeId, role: user.role, schoolId: String(user.schoolId), destinationMask: mask });
+    return res.json({ challengeId, role: user.role, schoolId: String(user.schoolId), destinationMask: mask, code: 'OK' });
   } catch (err) {
     next(err);
   }

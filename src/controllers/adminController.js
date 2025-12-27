@@ -93,7 +93,58 @@ async function bootstrap(req, res, next) {
   }
 }
 
+/**
+ * Temporary admin endpoint to set user's mobile number
+ * Protected by ADMIN_BOOTSTRAP_SECRET (header: x-admin-secret)
+ */
+async function setMobile(req, res, next) {
+  try {
+    const envSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
+
+    // If admin endpoint is disabled
+    if (!envSecret) {
+      return res.status(404).json({ error: 'Admin endpoint disabled' });
+    }
+
+    // Read secret from header
+    const providedSecret = req.headers['x-admin-secret'];
+
+    if (!providedSecret || providedSecret !== envSecret) {
+      return res.status(403).json({ error: 'Invalid admin secret' });
+    }
+
+    const { email, mobile } = req.body;
+
+    // Validation
+    if (!email || !mobile) {
+      return res.status(400).json({ error: 'Missing email or mobile' });
+    }
+
+    // Find user by email (case-insensitive)
+    const user = await User.findOne({ email: String(email).toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update meta.mobile
+    user.meta = user.meta || {};
+    user.meta.mobile = mobile;
+    await user.save();
+
+    // Success response
+    return res.json({
+      success: true,
+      email: user.email,
+      mobile: user.meta.mobile,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   bootstrap,
+  setMobile,
 };
 
